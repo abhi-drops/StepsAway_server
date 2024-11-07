@@ -20,6 +20,15 @@ const userSchema = new mongoose.Schema({
   userPic: {
     type: String,
   },
+  userInst:{
+    type: String,
+  },
+  userFB:{
+    type: String,
+  },
+  userBio:{
+    type: String,
+  },
   userCities: [{ type: Schema.Types.ObjectId, ref: 'cities' }], //
   userCircles: [{ type: Schema.Types.ObjectId, ref: 'circles' }], //
   userNotes: [{ type: Schema.Types.ObjectId, ref: 'notes' }],

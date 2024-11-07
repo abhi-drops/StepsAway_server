@@ -68,3 +68,101 @@ exports.getNoteData = async (req, res) => {
     res.status(401).json(err);
   }
 };
+
+exports.addNoteComment = async (req, res) => {
+  try {
+    const { NoteId } = req.params; // Extract NoteId from URL parameters
+    const { commentedUserName , commentedUserPic, commentedText } = req.body; // Extract comment data from the request body
+    const commentedUserId = req.payload // Correctly extract userId
+    // Create a new comment object
+    const newComment = {
+      commentedUserName,
+      commentedUserId,
+      commentedUserPic,
+      commentedText,
+    };
+
+    // Update the note document by pushing the new comment to the noteComments array
+    const updatedNote = await notes.findByIdAndUpdate(
+      NoteId,
+      { $push: { noteComments: newComment } },
+      { new: true } // Return the updated document
+    );
+
+    if (!updatedNote) {
+      return res.status(404).json("Note not found");
+    }
+
+    res.status(200).json(updatedNote); // Send back the updated note
+  } catch (err) {
+    console.log("Error adding comment:", err);
+    res.status(500).json(err);
+  }
+};
+
+exports.addNoteLike = async (req, res) => {
+  try {
+    const { NoteId } = req.params; // Extract NoteId from URL parameters
+    const userId = req.payload; // Extract userId from the request payload
+
+    // Find the note by ID
+    const note = await notes.findById(NoteId);
+
+    if (!note) {
+      return res.status(404).json("Note not found");
+    }
+
+    // Check if the user has already liked the note
+    const userIndex = note.noteLikedUsers.indexOf(userId);
+
+    if (userIndex !== -1) {
+      // User has already liked this note, remove the like
+      note.noteLikedUsers.splice(userIndex, 1);
+      res.status(200).json({ message: "Like removed", updatedNote: await note.save() });
+    } else {
+      // User has not liked this note, add the like
+      note.noteLikedUsers.push(userId);
+      res.status(200).json({ message: "Note liked", updatedNote: await note.save() });
+    }
+  } catch (err) {
+    console.log("Error adding note like:", err);
+    res.status(500).json(err);
+  }
+};
+
+exports.editCircleNote = async (req, res) => {
+  try {
+    console.log("inside edit circle function ");
+
+    const { NoteId } = req.params; // Extract NoteId from URL parameters
+    const { noteTitle, noteDes } = req.body; // Extract new title and description from the request body
+    const userId = req.payload; // Extract userId from the authenticated payload
+
+    console.log("userid in edit circle fn:",userId);
+    
+    // Find the note by its ID
+    const note = await notes.findById(NoteId);
+
+    // Check if the note exists
+    if (!note) {
+      return res.status(404).json({ message: "Note not found" });
+    }
+
+    // Check if the user is the creator of the note
+    if (note.noteCreatorId.toString() !== userId) {
+      return res.status(403).json({ message: "Unauthorized: You are not the note creator" });
+    }
+
+    // Update note details
+    note.noteTitle = noteTitle || note.noteTitle;
+    note.noteDes = noteDes || note.noteDes;
+
+    // Save the updated note
+    const updatedNote = await note.save();
+
+    res.status(200).json({ message: "Note updated successfully", updatedNote });
+  } catch (err) {
+    console.log("Error editing circle note:", err);
+    res.status(500).json(err);
+  }
+};
