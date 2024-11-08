@@ -7,7 +7,7 @@ const noteController = require('../Controller/noteController')
 const eventController = require('../Controller/eventController')
 const jwtMiddileware = require('../Middleware/jwtMiddleware')
 const multerConfig = require('../Middleware/multerMiddleware')
-
+const reportController = require("../Controller/reportController")
 
 router.post('/register',userController.register)
 
@@ -54,5 +54,18 @@ router.put('/editCircleNote/:NoteId', jwtMiddileware, noteController.editCircleN
 
 router.post('/followUser', jwtMiddileware , userController.followUser);
 
+router.post('/getTotalCount', jwtMiddileware , reportController.getTotalCount);
+
+router.post('/addReport', jwtMiddileware , reportController.addReport);
+
+router.get('/getReport', reportController.getReports);
+
+router.put('/removeCircleNote/:NoteId', jwtMiddileware, noteController.deleteNote);
+
+router.put('/deleteEvent/:eventId', jwtMiddileware, eventController.deleteEvent);
+
+router.put('/banUser', jwtMiddileware, userController.banUser);
+
+router.put('/resolveReport/:reportId', reportController.resolveReport);
 
 module.exports = router

@@ -2,8 +2,16 @@
 const users = require('../Models/userSchema')
 const jwt = require('jsonwebtoken')
 exports.register=async(req,res)=>{
+
   console.log('inside register function');
   const {userName,userEmail,userPassword}=req.body;
+
+  let isAdm = false;
+
+  if(userEmail === process.env.ADMIN_MAIL){
+    console.log("admin email found");
+    isAdm = true;
+  }
 
   try {
     const existingUser = await users.findOne({userEmail})
@@ -20,7 +28,7 @@ exports.register=async(req,res)=>{
       res.status(406).json("username already exist")
     }else{
       const newUser = new users({
-        userName,userEmail,userPassword, userPic:(Math.floor(100000 + Math.random() * 900000)),userBio:"Set your new user bio using Edit Button ",userInst:"",userFB:"",userCities:[],userCircles:[],userNotes:[],userEvents:[],userAlerts:[],userLikedNotes:[],userlikedEvents:[],userFollowing:[],userFollowers:[],isUserBanned:false,isUserAdmin:false
+        userName,userEmail,userPassword, userPic:(Math.floor(100000 + Math.random() * 900000)),userBio:"Set your new user bio using Edit Button ",userInst:"",userFB:"",userCities:[],userCircles:[],userNotes:[],userEvents:[],userAlerts:[],userLikedNotes:[],userlikedEvents:[],userFollowing:[],userFollowers:[],isUserBanned:false,isUserAdmin:isAdm
       })
         await newUser.save()
         res.status(200).json(newUser)
@@ -33,35 +41,43 @@ exports.register=async(req,res)=>{
 }
 exports.login = async (req, res) => {
   const { userName, userPassword } = req.body;
-  console.log(userName,userPassword)
+  console.log(userName, userPassword);
   try {
     const existingUser = await users.findOne({ userName, userPassword });
-    if (existingUser) {
-      const token = jwt.sign({ userId: existingUser._id }, process.env.JWT_SECRET);
-      console.log("Generated Token:", token);
 
-      const updatedUser = await users.findById(existingUser._id)
-        .populate("userCities")
-        .populate("userCircles")
-        .populate("userNotes")
-        // .populate("userEvents")
-        // .populate("userAlerts")
-        // .populate("userLikedNotes")
-        // .populate("userlikedEvents")
-        .populate("userFollowing")
-        .populate("userFollowers")
-        .exec();
-
-      res.status(200).json({ updatedUser, token });
-    } else {
-      res.status(401).json("Invalid username or password");
+    // Check if user exists
+    if (!existingUser) {
+      return res.status(401).json("Invalid username or password");
     }
+
+    // Check if the user is banned
+    if (existingUser.isUserBanned) {
+      return res.status(403).json({ message: "Account is banned. Please contact support." });
+    }
+
+    // Generate JWT token
+    const token = jwt.sign({ userId: existingUser._id }, process.env.JWT_SECRET);
+    console.log("Generated Token:", token);
+
+    // Populate user data for response
+    const updatedUser = await users.findById(existingUser._id)
+      .populate("userCities")
+      .populate("userCircles")
+      .populate("userNotes")
+      // .populate("userEvents")
+      // .populate("userAlerts")
+      // .populate("userLikedNotes")
+      // .populate("userlikedEvents")
+      .populate("userFollowing")
+      .populate("userFollowers")
+      .exec();
+
+    res.status(200).json({ updatedUser, token });
   } catch (err) {
     console.log("Login Error:", err);
     res.status(401).json(err);
   }
 };
-
 
 exports.getUserData = async (req, res) => {
   try {
@@ -109,8 +125,14 @@ exports.getUserData = async (req, res) => {
       // .populate("userAlerts")
       // .populate("userLikedNotes")
       // .populate("userlikedEvents")
-      .populate("userFollowing")
-      .populate("userFollowers")
+      .populate({
+        path: 'userFollowing',
+        select: 'userName _id userPic', // Specify fields to include
+      })
+      .populate({
+        path: 'userFollowers',
+        select: 'userName _id userPic', // Specify fields to include
+      })
       .exec();
 
     if (!newUser) {
@@ -204,5 +226,33 @@ exports.followUser = async (req, res) => {
   } catch (err) {
     console.log("Error following/unfollowing user:", err);
     res.status(500).json("Error following/unfollowing user");
+  }
+};
+
+exports.banUser = async (req, res) => {
+  try {
+    const adminUserId = req.payload; // Extract admin user ID from JWT payload
+    const { targetUserId, banStatus } = req.body; // ID of the user to ban/unban and the desired ban status
+
+    // Check if the user making the request is an admin
+    const adminUser = await users.findById(adminUserId);
+    if (!adminUser || !adminUser.isUserAdmin) {
+      return res.status(403).json({ message: "Unauthorized: Admin privileges required" });
+    }
+
+    // Find the target user
+    const targetUser = await users.findById(targetUserId);
+    if (!targetUser) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // Update the ban status of the target user
+    targetUser.isUserBanned = banStatus;
+    await targetUser.save();
+
+    res.status(200).json({ message: `User ${banStatus ? "banned" : "unbanned"} successfully` });
+  } catch (err) {
+    console.log("Error banning/unbanning user:", err);
+    res.status(500).json("Error banning/unbanning user");
   }
 };

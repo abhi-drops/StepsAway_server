@@ -177,3 +177,43 @@ exports.editEventNote = async (req, res) => {
     res.status(500).json(err);
   }
 };
+
+// Delete Event Function by Admin
+exports.deleteEvent = async (req, res) => {
+  try {
+    const { eventId } = req.params; // Extract eventId from URL parameters
+    const userId = req.payload; // Extract userId from the authenticated payload
+
+    // Find the user and check if they are an admin
+    const adminUser = await users.findById(userId);
+    if (!adminUser || !adminUser.isUserAdmin) {
+      return res.status(403).json({ message: "Unauthorized: Admin privileges required" });
+    }
+
+    // Find the event by ID
+    const event = await events.findById(eventId);
+
+    // Check if the event exists
+    if (!event) {
+      return res.status(404).json({ message: "Event not found" });
+    }
+
+    // Remove the event ID from the associated city and user documents
+    await cities.findByIdAndUpdate(event.cityId, {
+      $pull: { cityEventsId: eventId }
+    });
+
+    await users.findByIdAndUpdate(event.eventCreatorId, {
+      $pull: { userEvents: eventId }
+    });
+
+    // Delete the event from the database
+    await events.findByIdAndDelete(eventId);
+
+    res.status(200).json({ message: "Event deleted successfully by admin" });
+
+  } catch (err) {
+    console.log("Error deleting event:", err);
+    res.status(500).json({ message: "Error deleting event", error: err });
+  }
+};

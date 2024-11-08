@@ -139,7 +139,7 @@ exports.editCircleNote = async (req, res) => {
     const userId = req.payload; // Extract userId from the authenticated payload
 
     console.log("userid in edit circle fn:",userId);
-    
+
     // Find the note by its ID
     const note = await notes.findById(NoteId);
 
@@ -164,5 +164,46 @@ exports.editCircleNote = async (req, res) => {
   } catch (err) {
     console.log("Error editing circle note:", err);
     res.status(500).json(err);
+  }
+};
+
+// Delete Note Function
+exports.deleteNote = async (req, res) => {
+  try {
+    const { NoteId } = req.params; // Extract NoteId from URL parameters
+    const userId = req.payload; // Extract userId from the authenticated payload
+
+    // Find the note by ID
+    const note = await notes.findById(NoteId);
+
+    // Check if the note exists
+    if (!note) {
+      return res.status(404).json({ message: "Note not found" });
+    }
+
+    // Verify that the user attempting to delete the note is the creator
+    const User = await users.findById(userId)
+
+    if (User.isUserAdmin == false){
+      return res.status(403).json({ message: "Unauthorized: You are not the note admin" });
+    }
+
+    // Remove the note ID from the associated circle and user documents
+    await circles.findByIdAndUpdate(note.circleId, {
+      $pull: { circleNotes: NoteId }
+    });
+
+    await users.findByIdAndUpdate(note.noteCreatorId, {
+      $pull: { userNotes: NoteId }
+    });
+
+    // Delete the note from the database
+    await notes.findByIdAndDelete(NoteId);
+
+    res.status(200).json({ message: "Note deleted successfully" });
+
+  } catch (err) {
+    console.log("Error deleting note:", err);
+    res.status(500).json({ message: "Error deleting note", error: err });
   }
 };
