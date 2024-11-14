@@ -1,12 +1,15 @@
 
 const users = require('../Models/userSchema')
 const jwt = require('jsonwebtoken')
+
 exports.register=async(req,res)=>{
 
   console.log('inside register function');
   const {userName,userEmail,userPassword}=req.body;
 
   let isAdm = false;
+
+  console.log("JWT_SECRET ADMIN EMAIL :", process.env.ADMIN_MAIL);
 
   if(userEmail === process.env.ADMIN_MAIL){
     console.log("admin email found");
@@ -55,6 +58,7 @@ exports.login = async (req, res) => {
       return res.status(401).json( "Account is banned. Please contact support." );
     }
 
+    console.log("JWT_SECRET :", process.env.JWT_SECRET);
     // Generate JWT token
     const token = jwt.sign({ userId: existingUser._id }, process.env.JWT_SECRET);
     console.log("Generated Token:", token);
