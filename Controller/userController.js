@@ -52,7 +52,7 @@ exports.login = async (req, res) => {
 
     // Check if the user is banned
     if (existingUser.isUserBanned) {
-      return res.status(403).json({ message: "Account is banned. Please contact support." });
+      return res.status(401).json( "Account is banned. Please contact support." );
     }
 
     // Generate JWT token
